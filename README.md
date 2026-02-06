@@ -1,43 +1,80 @@
 # Agent Avengers
 
-🦸 **올인원 멀티에이전트 오케스트레이션**
+🦸 **All-in-One Multi-Agent Orchestration**
 
-## 설치
+> [한국어 README](./README-kr.md)
 
-이미 설치됨: `~/.openclaw/workspace/skills/agent-avengers/`
+## Installation
 
-## 사용법
-
-```
-어벤저스 어셈블! [복잡한 태스크 설명]
+```bash
+clawhub install agent-avengers
 ```
 
-## 예시
+Or clone directly:
+```bash
+git clone https://github.com/oozoofrog/agent-avengers.git ~/.openclaw/workspace/skills/agent-avengers
+```
+
+## Usage
 
 ```
-어벤저스 어셈블! A사, B사, C사 경쟁 분석해서 비교 리포트 만들어줘
+Avengers assemble! [complex task description]
 ```
 
-## 작동 방식
+## Examples
 
-1. **분해** — 태스크를 서브태스크로 분할
-2. **구성** — 각 서브태스크에 전문 에이전트 할당
-3. **실행** — 병렬/순차 실행
-4. **통합** — 결과 수집 및 병합
-5. **보고** — 최종 산출물 전달
+```
+Avengers assemble! Analyze competitors A, B, and C, then create a comparison report
+```
 
-## 에이전트 타입
+```
+Avengers assemble! Build a full-stack todo app with React frontend and Node.js backend
+```
 
-| 타입 | 역할 |
+## How It Works
+
+1. **Decompose** — Break down the task into subtasks
+2. **Compose** — Assign specialized agents to each subtask
+3. **Execute** — Run in parallel or sequential order
+4. **Consolidate** — Collect and merge results
+5. **Report** — Deliver final output
+
+## Agent Types
+
+| Type | Role |
 |------|------|
-| 🔬 Researcher | 조사, 데이터 수집 |
-| 🔍 Analyst | 분석, 패턴 발견 |
-| 🖊️ Writer | 문서 작성 |
-| 💻 Coder | 코드 구현 |
-| ✅ Reviewer | 품질 검토 |
-| 🔧 Integrator | 결과 통합 |
+| 🔬 Researcher | Investigation, data collection |
+| 🔍 Analyst | Analysis, pattern discovery |
+| 🖊️ Writer | Documentation, content creation |
+| 💻 Coder | Code implementation |
+| ✅ Reviewer | Quality review |
+| 🔧 Integrator | Result consolidation |
 
-## 설정
+## Agent Modes
+
+| Mode | Description |
+|------|-------------|
+| 🔷 Existing | Use registered agents (watson, picasso, etc.) |
+| 🔶 Spawned | Create one-off sub-agents on demand |
+| 🟣 Multi-Profile | Involve other OpenClaw bot instances |
+| 🔷🔶🟣 Hybrid | Combine all modes (recommended) |
+
+## Emergent Collaboration Patterns
+
+- 🗳️ **Competitive Draft** — Multiple agents work independently, best solution wins
+- 🎭 **Role Rotation** — Agents swap roles each round
+- ⚔️ **Adversarial Collaboration** — Creator vs Critic iterations
+- 🧬 **Evolutionary Selection** — Solutions crossbreed and evolve
+- 🐝 **Swarm Intelligence** — Many micro-agents tackle small chunks
+- 🔗 **Chain Relay** — Output → Input chaining
+- 💭 **Consensus Protocol** — Unanimous agreement required
+- 🎪 **Cross-Domain Jam** — Combine different expertise areas
+- 🪞 **Meta Observer** — Agent watches and coaches the team
+- ⏰ **Temporal Split** — Short/mid/long-term parallel approaches
+- 🎰 **Task Auction** — Confidence-based bidding
+- 🧠 **Shared Memory** — Real-time discovery sharing
+
+## Configuration
 
 `avengers.yaml`:
 ```yaml
@@ -47,6 +84,15 @@ retryCount: 2
 defaultModel: sonnet
 ```
 
-## 라이선스
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `scripts/assemble.py` | Task decomposition & plan generation |
+| `scripts/execute.py` | Generate execution commands |
+| `scripts/monitor.py` | Progress monitoring (supports --watch) |
+| `scripts/consolidate.py` | Result consolidation |
+
+## License
 
 MIT
