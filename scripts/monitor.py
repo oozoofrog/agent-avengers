@@ -10,73 +10,67 @@ import sys
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Optional
 
-WORKSPACE = os.environ.get("AVENGERS_WORKSPACE", os.path.expanduser("~/.openclaw/workspace"))
-MISSION_DIR = Path(WORKSPACE) / "avengers-missions"
-
-
-def load_mission(mission_id: str) -> tuple:
-    """미션 및 실행 계획 로드"""
-    mission_path = MISSION_DIR / mission_id
-    
-    with open(mission_path / "mission.json") as f:
-        mission = json.load(f)
-    
-    plan_file = mission_path / "execution_plan.json"
-    plan = None
-    if plan_file.exists():
-        with open(plan_file) as f:
-            plan = json.load(f)
-    
-    return mission, plan
+try:
+    from config import MISSION_DIR
+    from utils import load_mission_only as load_mission
+    from exceptions import MissionNotFoundError
+except ImportError:
+    from .config import MISSION_DIR
+    from .utils import load_mission_only as load_mission
+    from .exceptions import MissionNotFoundError
 
 
-def check_agent_outputs(mission_path: Path, plan: dict) -> list:
+def check_agent_outputs(mission_path: Path, plan: Optional[dict[str, Any]]) -> list[dict[str, Any]]:
     """에이전트 출력 파일 확인"""
-    outputs_dir = mission_path / "outputs"
-    results = []
-    
+    outputs_dir: Path = mission_path / "outputs"
+    results: list[dict[str, Any]] = []
+
     if not plan:
         return results
-    
+
     for cmd in plan.get("commands", []):
-        agent_id = cmd["agent_id"]
-        output_file = outputs_dir / f"{agent_id}.md"
-        
-        status = "pending"
-        output_size = 0
-        
+        agent_id: str = cmd["agent_id"]
+        output_file: Path = outputs_dir / f"{agent_id}.md"
+
+        status: str = "pending"
+        output_size: int = 0
+
         if output_file.exists():
             status = "completed"
             output_size = output_file.stat().st_size
-        
+
         results.append({
             "agent_id": agent_id,
             "status": status,
             "output_file": str(output_file),
             "output_size": output_size
         })
-    
+
     return results
 
 
-def read_logs(mission_path: Path, limit: int = 20) -> list:
+def read_logs(mission_path: Path, limit: int = 20) -> list[dict[str, Any]]:
     """실행 로그 읽기"""
-    log_file = mission_path / "logs" / "execution.jsonl"
-    
+    log_file: Path = mission_path / "logs" / "execution.jsonl"
+
     if not log_file.exists():
         return []
-    
-    logs = []
+
+    logs: list[dict[str, Any]] = []
     with open(log_file) as f:
         for line in f:
             if line.strip():
-                logs.append(json.loads(line))
-    
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
     return logs[-limit:]
 
 
-def print_status(mission: dict, plan: dict, agent_results: list, logs: list):
+def print_status(mission: dict[str, Any], plan: Optional[dict[str, Any]], agent_results: list[dict[str, Any]], logs: list[dict[str, Any]]) -> None:
     """상태 출력"""
     print("\n" + "="*70)
     print("🦸 AVENGERS MONITOR - 미션 상태")
@@ -91,17 +85,17 @@ def print_status(mission: dict, plan: dict, agent_results: list, logs: list):
     
     if plan:
         print(f"\n📊 에이전트 현황:")
-        
-        completed = sum(1 for r in agent_results if r["status"] == "completed")
-        total = len(agent_results)
-        
+
+        completed: int = sum(1 for r in agent_results if r["status"] == "completed")
+        total: int = len(agent_results)
+
         print(f"   진행률: {completed}/{total} ({completed/total*100:.0f}%)")
         print()
-        
+
         # 진행바
-        bar_width = 40
-        filled = int(bar_width * completed / total) if total > 0 else 0
-        bar = "█" * filled + "░" * (bar_width - filled)
+        bar_width: int = 40
+        filled: int = int(bar_width * completed / total) if total > 0 else 0
+        bar: str = "█" * filled + "░" * (bar_width - filled)
         print(f"   [{bar}]")
         print()
         
@@ -135,7 +129,7 @@ def print_status(mission: dict, plan: dict, agent_results: list, logs: list):
     print("="*70)
 
 
-def watch_mode(mission_id: str, interval: int = 10):
+def watch_mode(mission_id: str, interval: int = 10) -> None:
     """실시간 모니터링 모드"""
     import time
     
@@ -167,27 +161,27 @@ def watch_mode(mission_id: str, interval: int = 10):
         print("\n\n👋 모니터링 종료")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Agent Avengers - Monitor")
+def main() -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Agent Avengers - Monitor")
     parser.add_argument("--mission", "-m", required=True, help="미션 ID")
     parser.add_argument("--watch", "-w", action="store_true", help="실시간 모니터링")
     parser.add_argument("--interval", "-i", type=int, default=10, help="갱신 간격(초)")
     parser.add_argument("--json", "-j", action="store_true", help="JSON 출력")
-    
-    args = parser.parse_args()
-    
+
+    args: argparse.Namespace = parser.parse_args()
+
     try:
         mission, plan = load_mission(args.mission)
-    except FileNotFoundError:
-        print(f"❌ 미션을 찾을 수 없습니다: {args.mission}")
+    except MissionNotFoundError as e:
+        print(f"❌ 오류: {e}")
         sys.exit(1)
-    
-    mission_path = Path(mission["path"])
-    agent_results = check_agent_outputs(mission_path, plan)
-    logs = read_logs(mission_path)
-    
+
+    mission_path: Path = Path(mission["path"])
+    agent_results: list[dict[str, Any]] = check_agent_outputs(mission_path, plan)
+    logs: list[dict[str, Any]] = read_logs(mission_path)
+
     if args.json:
-        output = {
+        output: dict[str, Any] = {
             "mission": mission,
             "agents": agent_results,
             "logs": logs

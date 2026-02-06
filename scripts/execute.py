@@ -11,60 +11,25 @@ import time
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-WORKSPACE = os.environ.get("AVENGERS_WORKSPACE", os.path.expanduser("~/.openclaw/workspace"))
-MISSION_DIR = Path(WORKSPACE) / "avengers-missions"
-
-
-def load_mission(mission_id: str) -> tuple:
-    """미션 및 실행 계획 로드"""
-    mission_path = MISSION_DIR / mission_id
-    
-    with open(mission_path / "mission.json") as f:
-        mission = json.load(f)
-    
-    with open(mission_path / "execution_plan.json") as f:
-        plan = json.load(f)
-    
-    return mission, plan
+try:
+    from config import MISSION_DIR
+    from utils import load_mission, update_mission_status, log_event
+    from exceptions import MissionNotFoundError, PlanNotFoundError
+except ImportError:
+    from .config import MISSION_DIR
+    from .utils import load_mission, update_mission_status, log_event
+    from .exceptions import MissionNotFoundError, PlanNotFoundError
 
 
-def update_mission_status(mission_path: Path, status: str, updates: dict = None):
-    """미션 상태 업데이트"""
-    with open(mission_path / "mission.json") as f:
-        mission = json.load(f)
-    
-    mission["status"] = status
-    mission["updated_at"] = datetime.now().isoformat()
-    
-    if updates:
-        mission.update(updates)
-    
-    with open(mission_path / "mission.json", "w") as f:
-        json.dump(mission, f, indent=2, ensure_ascii=False)
-
-
-def log_event(mission_path: Path, event: str, data: dict = None):
-    """이벤트 로깅"""
-    log_file = mission_path / "logs" / "execution.jsonl"
-    
-    entry = {
-        "timestamp": datetime.now().isoformat(),
-        "event": event,
-        "data": data or {}
-    }
-    
-    with open(log_file, "a") as f:
-        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-
-
-def generate_openclaw_commands(plan: dict) -> list:
+def generate_openclaw_commands(plan: dict[str, Any]) -> list[dict[str, Any]]:
     """OpenClaw에서 실행할 명령어 생성"""
-    commands = []
-    
+    commands: list[dict[str, Any]] = []
+
     for phase in plan["phases"]:
-        phase_commands = []
-        
+        phase_commands: list[dict[str, Any]] = []
+
         for agent in phase["agents"]:
             # 해당 에이전트의 명령어 찾기
             cmd_info = next(
@@ -106,7 +71,7 @@ def generate_openclaw_commands(plan: dict) -> list:
     return commands
 
 
-def print_execution_script(commands: list, mission_id: str):
+def print_execution_script(commands: list[dict[str, Any]], mission_id: str) -> None:
     """실행 스크립트 출력"""
     print("\n" + "="*70)
     print("🦸 AVENGERS EXECUTE - OpenClaw 실행 명령어")
@@ -144,9 +109,9 @@ def print_execution_script(commands: list, mission_id: str):
     print("="*70)
 
 
-def save_execution_script(commands: list, mission_path: Path):
+def save_execution_script(commands: list[dict[str, Any]], mission_path: Path) -> Path:
     """실행 스크립트를 파일로 저장"""
-    script_path = mission_path / "execute_commands.md"
+    script_path: Path = mission_path / "execute_commands.md"
     
     with open(script_path, "w") as f:
         f.write("# Avengers Execute Commands\n\n")
@@ -168,41 +133,41 @@ def save_execution_script(commands: list, mission_path: Path):
     return script_path
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Agent Avengers - Execute")
+def main() -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Agent Avengers - Execute")
     parser.add_argument("--mission", "-m", required=True, help="미션 ID")
     parser.add_argument("--dry-run", "-d", action="store_true", help="명령어만 출력")
     parser.add_argument("--save", "-s", action="store_true", help="스크립트 파일 저장")
-    
-    args = parser.parse_args()
-    
+
+    args: argparse.Namespace = parser.parse_args()
+
     try:
         mission, plan = load_mission(args.mission)
-    except FileNotFoundError:
-        print(f"❌ 미션을 찾을 수 없습니다: {args.mission}")
+    except (MissionNotFoundError, PlanNotFoundError) as e:
+        print(f"❌ 오류: {e}")
         print(f"   경로: {MISSION_DIR / args.mission}")
         sys.exit(1)
-    
-    mission_path = Path(mission["path"])
-    
+
+    mission_path: Path = Path(mission["path"])
+
     # 실행 명령어 생성
-    commands = generate_openclaw_commands(plan)
-    
+    commands: list[dict[str, Any]] = generate_openclaw_commands(plan)
+
     # 실행 시작 로깅
     log_event(mission_path, "execution_started", {
         "total_phases": len(commands),
         "total_agents": plan["total_agents"]
     })
-    
+
     # 상태 업데이트
     update_mission_status(mission_path, "executing")
-    
+
     # 명령어 출력
     print_execution_script(commands, args.mission)
-    
+
     # 파일 저장
     if args.save:
-        script_path = save_execution_script(commands, mission_path)
+        script_path: Path = save_execution_script(commands, mission_path)
         print(f"\n📄 스크립트 저장됨: {script_path}")
 
 

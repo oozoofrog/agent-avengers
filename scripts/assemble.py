@@ -10,64 +10,26 @@ import sys
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-# 워크스페이스 경로
-WORKSPACE = os.environ.get("AVENGERS_WORKSPACE", os.path.expanduser("~/.openclaw/workspace"))
-MISSION_DIR = Path(WORKSPACE) / "avengers-missions"
-
-# 에이전트 타입 정의
-AGENT_TYPES = {
-    "researcher": {
-        "emoji": "🔬",
-        "model": "sonnet",
-        "timeout": 1800,
-        "keywords": ["조사", "리서치", "검색", "수집", "분석"]
-    },
-    "analyst": {
-        "emoji": "🔍",
-        "model": "opus",
-        "timeout": 1200,
-        "keywords": ["분석", "패턴", "인사이트", "평가"]
-    },
-    "writer": {
-        "emoji": "🖊️",
-        "model": "sonnet",
-        "timeout": 900,
-        "keywords": ["작성", "문서", "리포트", "콘텐츠", "글"]
-    },
-    "coder": {
-        "emoji": "💻",
-        "model": "opus",
-        "timeout": 2400,
-        "keywords": ["코드", "개발", "구현", "API", "프로그래밍"]
-    },
-    "reviewer": {
-        "emoji": "✅",
-        "model": "opus",
-        "timeout": 600,
-        "keywords": ["검토", "리뷰", "피드백", "확인"]
-    },
-    "integrator": {
-        "emoji": "🔧",
-        "model": "sonnet",
-        "timeout": 900,
-        "keywords": ["통합", "병합", "조합", "최종"]
-    }
-}
+try:
+    from config import WORKSPACE, MISSION_DIR, AGENT_TYPES
+except ImportError:
+    from .config import WORKSPACE, MISSION_DIR, AGENT_TYPES
 
 
-def create_mission(task_description: str) -> dict:
+def create_mission(task_description: str) -> dict[str, Any]:
     """미션 생성 및 초기화"""
-    mission_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    mission_path = MISSION_DIR / mission_id
+    mission_id: str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    mission_path: Path = MISSION_DIR / mission_id
     mission_path.mkdir(parents=True, exist_ok=True)
-    
+
     # 서브 디렉토리 생성
     (mission_path / "agents").mkdir(exist_ok=True)
     (mission_path / "outputs").mkdir(exist_ok=True)
     (mission_path / "logs").mkdir(exist_ok=True)
-    
-    mission = {
+
+    mission: dict[str, Any] = {
         "id": mission_id,
         "path": str(mission_path),
         "task": task_description,
@@ -86,17 +48,17 @@ def create_mission(task_description: str) -> dict:
 
 def detect_agent_type(subtask: str) -> str:
     """서브태스크 설명에서 에이전트 타입 추론"""
-    subtask_lower = subtask.lower()
-    
+    subtask_lower: str = subtask.lower()
+
     for agent_type, config in AGENT_TYPES.items():
         for keyword in config["keywords"]:
             if keyword in subtask_lower:
                 return agent_type
-    
+
     return "researcher"  # 기본값
 
 
-def decompose_task(task: str) -> list:
+def decompose_task(task: str) -> list[dict[str, Any]]:
     """
     태스크를 서브태스크로 분해
     실제로는 LLM을 호출해야 하지만, 여기선 구조만 정의
@@ -106,13 +68,13 @@ def decompose_task(task: str) -> list:
     return []
 
 
-def create_agent_config(subtask: dict, mission_id: str, index: int) -> dict:
+def create_agent_config(subtask: dict[str, Any], mission_id: str, index: int) -> dict[str, Any]:
     """에이전트 설정 생성"""
-    agent_type = subtask.get("type") or detect_agent_type(subtask["description"])
-    type_config = AGENT_TYPES.get(agent_type, AGENT_TYPES["researcher"])
-    
-    agent_id = f"{mission_id}_agent_{index:02d}"
-    
+    agent_type: str = subtask.get("type") or detect_agent_type(subtask["description"])
+    type_config: dict[str, Any] = AGENT_TYPES.get(agent_type, AGENT_TYPES["researcher"])
+
+    agent_id: str = f"{mission_id}_agent_{index:02d}"
+
     return {
         "id": agent_id,
         "type": agent_type,
@@ -128,7 +90,7 @@ def create_agent_config(subtask: dict, mission_id: str, index: int) -> dict:
     }
 
 
-def generate_spawn_command(agent: dict, mission_path: str) -> dict:
+def generate_spawn_command(agent: dict[str, Any], mission_path: str) -> dict[str, Any]:
     """sessions_spawn 호출용 파라미터 생성"""
     
     prompt = f"""
@@ -163,7 +125,7 @@ def generate_spawn_command(agent: dict, mission_path: str) -> dict:
     }
 
 
-def generate_send_command(agent: dict, existing_agent_id: str) -> dict:
+def generate_send_command(agent: dict[str, Any], existing_agent_id: str) -> dict[str, Any]:
     """sessions_send 호출용 파라미터 생성 (기존 에이전트용)"""
     
     message = f"""
@@ -189,29 +151,29 @@ def generate_send_command(agent: dict, existing_agent_id: str) -> dict:
     }
 
 
-def save_execution_plan(mission: dict, agents: list) -> str:
+def save_execution_plan(mission: dict[str, Any], agents: list[dict[str, Any]]) -> str:
     """실행 계획 저장"""
-    mission_path = Path(mission["path"])
-    
+    mission_path: Path = Path(mission["path"])
+
     # 의존성 기반 실행 순서 계산
-    phases = []
-    remaining = agents.copy()
-    completed_ids = set()
-    
+    phases: list[list[dict[str, Any]]] = []
+    remaining: list[dict[str, Any]] = agents.copy()
+    completed_ids: set[str] = set()
+
     while remaining:
         # 의존성이 모두 해결된 에이전트 찾기
-        ready = [a for a in remaining if all(d in completed_ids for d in a["dependencies"])]
-        
+        ready: list[dict[str, Any]] = [a for a in remaining if all(d in completed_ids for d in a["dependencies"])]
+
         if not ready:
             # 순환 의존성 또는 오류
             ready = remaining[:1]
-        
+
         phases.append(ready)
         for a in ready:
             completed_ids.add(a["id"])
             remaining.remove(a)
-    
-    plan = {
+
+    plan: dict[str, Any] = {
         "mission_id": mission["id"],
         "total_agents": len(agents),
         "phases": [
@@ -259,10 +221,10 @@ def save_execution_plan(mission: dict, agents: list) -> str:
     return str(mission_path / "execution_plan.json")
 
 
-def print_plan_summary(plan_path: str):
+def print_plan_summary(plan_path: str) -> None:
     """실행 계획 요약 출력"""
     with open(plan_path) as f:
-        plan = json.load(f)
+        plan: dict[str, Any] = json.load(f)
     
     print("\n" + "="*60)
     print("🦸 AVENGERS ASSEMBLE - 실행 계획")
@@ -285,47 +247,50 @@ def print_plan_summary(plan_path: str):
     print("="*60)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Agent Avengers - Assemble")
+def main() -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Agent Avengers - Assemble")
     parser.add_argument("--task", "-t", help="태스크 설명")
     parser.add_argument("--subtasks", "-s", help="서브태스크 JSON 파일")
     parser.add_argument("--interactive", "-i", action="store_true", help="대화형 모드")
-    
-    args = parser.parse_args()
-    
+
+    args: argparse.Namespace = parser.parse_args()
+
+    task: str
+    subtasks: list[dict[str, Any]]
+
     if args.subtasks:
         # JSON 파일에서 서브태스크 로드
         with open(args.subtasks) as f:
-            data = json.load(f)
-        
+            data: dict[str, Any] = json.load(f)
+
         task = data.get("task", "Avengers Mission")
         subtasks = data.get("subtasks", [])
-        
+
     elif args.task:
         print("⚠️  태스크만 제공됨. 서브태스크는 OpenClaw 세션에서 분해 필요.")
         task = args.task
         subtasks = []
-        
+
     else:
         print("사용법:")
         print("  python3 assemble.py --subtasks mission.json")
         print("  python3 assemble.py --task '복잡한 작업 설명'")
         sys.exit(1)
-    
+
     # 미션 생성
-    mission = create_mission(task)
+    mission: dict[str, Any] = create_mission(task)
     print(f"📁 미션 생성: {mission['id']}")
-    
+
     if subtasks:
         # 에이전트 설정 생성
-        agents = [
+        agents: list[dict[str, Any]] = [
             create_agent_config(st, mission["id"], i)
             for i, st in enumerate(subtasks)
         ]
-        
+
         # 실행 계획 저장
-        plan_path = save_execution_plan(mission, agents)
-        
+        plan_path: str = save_execution_plan(mission, agents)
+
         # 요약 출력
         print_plan_summary(plan_path)
     else:
